@@ -2,9 +2,9 @@
 #include <iostream>
 #include <math.h>
 
-#define SLEEPMILLI 1000.0f / 144.0f
+#define SLEEPMILLI 1000.0f / 144.0f //sort of FPS
 #define TIMESTEP SLEEPMILLI / 1000.0f
-#define FORCE 5000.0f * TIMESTEP
+#define FORCE 10000.0f * TIMESTEP
 #define MASS 100.0f
 #define WIDTH 1366
 #define HEIGHT 768
@@ -50,7 +50,7 @@ int main(){
 	window.setActive(false);
 	circle.setRadius(RADIUS);
 	circle.setFillColor(Color::Magenta);
-	circle.setPosition(690, 690);
+	circle.setPosition(WIDTH/2, HEIGHT/2);
 	Thread thread(&renderThread, &window);
 	thread.launch();
 	while(window.isOpen()){
