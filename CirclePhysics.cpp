@@ -15,6 +15,7 @@
 using namespace std;
 using namespace sf;
 
+RenderWindow window;
 CircleShape circle;
 Vector2f velocity, acceleration, position;
 bool withFriction = false;
