@@ -11,24 +11,13 @@
 #define RADIUS 30.0f
 #define ELASTICITY 1.0f
 #define FRICTION 0.2f * TIMESTEP
-#define VELOCITY
 
 using namespace std;
 using namespace sf;
 
-RenderWindow window;
 CircleShape circle;
 Vector2f velocity, acceleration, position;
 bool withFriction = false;
-
-Vector2f normalize(Vector2f vector){
-	float length = sqrt((vector.x * vector.x) + (vector.y * vector.y));
-	if(length != 0){
-		return Vector2f(vector.x / length, vector.y / length);
-	}else{
-		return vector;
-	}
-}
 
 void bounceCheck(){
 	float cx = circle.getPosition().x, cy = circle.getPosition().y;
@@ -50,30 +39,13 @@ void bounceCheck(){
 	}
 }
 
-void updateVelocity(){
-	position = position + (0.5f * acceleration * TIMESTEP * TIMESTEP) + (velocity * TIMESTEP) + position;
+void updatePosition(){
 	velocity = velocity + (acceleration * TIMESTEP);
 	if(withFriction) velocity -= (FRICTION * velocity * MASS);
+	position = circle.getPosition();
+	position = position + (0.5f * acceleration * TIMESTEP * TIMESTEP) + (velocity * TIMESTEP);
+	circle.setPosition(position);
 }
-
-void moveCircle(){
-	circle.move(velocity);
-}
-
-void renderThread(RenderWindow* window){
-	while(window->isOpen()){
-		normalize(position);
-		normalize(velocity);
-		normalize(acceleration);
-		bounceCheck();
-		updateVelocity();
-		moveCircle();
-		window->clear(Color::Black);
-		window->draw(circle);
-		window->display();
-	}
-}
-
 
 int main(){
 	ContextSettings settings;
@@ -86,8 +58,6 @@ int main(){
 	circle.setOrigin(RADIUS, RADIUS);
 	circle.setFillColor(Color::Magenta);
 	circle.setPosition(WIDTH/2, HEIGHT/2);
-	Thread thread(&renderThread, &window);
-	thread.launch();
 	while(window.isOpen()){
 		Event event;
 		while(window.pollEvent(event)){
@@ -137,5 +107,10 @@ int main(){
 				break;
 			}
 		}
+		bounceCheck();
+		updatePosition();
+		window.clear(Color::Black);
+		window.draw(circle);
+		window.display();
 	}
 }
