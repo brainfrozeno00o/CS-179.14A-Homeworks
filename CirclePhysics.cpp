@@ -5,7 +5,8 @@
 #define FPS 60
 #define TIMESTEP 1.0f / 60.0f
 #define FORCE 160.0f
-#define MASS 1.0f 
+#define mass 1.0f
+#define MASS 1.0f / mass
 #define WIDTH 800
 #define HEIGHT 600
 #define RADIUS 30.0f
@@ -24,7 +25,7 @@ void bounceCheck(){
 	float cx = circle.getPosition().x, cy = circle.getPosition().y;
 	if(cy + RADIUS > HEIGHT - 1) {
 		velocity.y = -ELASTICITY * velocity.y;
-		circle.setPosition(cx, HEIGHT - RADIUS);
+		circle.setPosition(cx, HEIGHT - RADIUS - 1);
 	}
 	if(cy - RADIUS < 0){
 		velocity.y = -ELASTICITY * velocity.y;
@@ -32,7 +33,7 @@ void bounceCheck(){
 	}
 	if(cx + RADIUS > WIDTH - 1){
 		velocity.x = -ELASTICITY * velocity.x;
-		circle.setPosition(WIDTH - RADIUS, cy);
+		circle.setPosition(WIDTH - RADIUS - 1, cy);
 	}
 	if(cx - RADIUS < 0){
 		velocity.x = -ELASTICITY * velocity.x;
