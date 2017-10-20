@@ -4,44 +4,70 @@
 #include <stdlib.h>
 
 #define FPS 60
-#define WIDTH 800
-#define HEIGHT 600
+#define WIDTH 1280
+#define HEIGHT 720
 #define TIMESTEP 1.0f / 60.0f
+#define LIMIT 15
 
 using namespace std;
 using namespace sf;
 
 RenderWindow window;
-RectangleShape rArray[5];
-RectangleShape AABB[5];
-Vector2f minXMinY[5];
-Vector2f minXMaxY[5];
-Vector2f maxXMinY[5];
-Vector2f maxXMaxY[5];
-Vector2f colAABB[5];
+RectangleShape rArray[LIMIT];
+RectangleShape AABB[LIMIT];
+Vector2f minXMinY[LIMIT];
+Vector2f minXMaxY[LIMIT];
+Vector2f maxXMinY[LIMIT];
+Vector2f maxXMaxY[LIMIT];
+Vector2f colAABB[LIMIT];
 
-int main(){
+bool uandicollide(int a){//check for overlap after
+	Vector2f minPointA = Vector2f((rArray[a].getPosition().x - (rArray[a].getSize().x / 2)), (rArray[a].getPosition().y - (rArray[a].getPosition().y / 2)));
+	Vector2f diff;
+	for(int j = 0; j < LIMIT; j++){
+		if(a != j){
+			Vector2f minPointB = Vector2f((rArray[j].getPosition().x - (rArray[j].getSize().x / 2)), (rArray[j].getPosition().y - (rArray[j].getPosition().y / 2)));
+			diff = minPointA - minPointB;
+			if(diff.x > rArray[j].getSize().x || -diff.x > rArray[a].getSize().x || diff.y > rArray[j].getSize().y || -diff.y > rArray[a].getSize().y){
+				continue;
+			}else{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+int main(int argc, char *argv[]){
+	float x = atoi(argv[1]);
+	if(x <= 0 || x > 15){
+		cout << "Cannot draw no rectangles or more than 15 rectangles!";
+		return 0;
+	}
 	ContextSettings settings;
 	settings.antialiasingLevel = 8;
 	window.create(VideoMode(WIDTH, HEIGHT), "Bounding Boxes", Style::Default, settings);
 	window.setFramerateLimit(FPS);
-	rArray[0].setSize(Vector2f(50.0f, 150.0f));	
-	rArray[1].setSize(Vector2f(250.0f, 100.0f));
-	rArray[2].setSize(Vector2f(120.0f, 300.0f));
-	rArray[3].setSize(Vector2f(150.0f, 100.0f));
-	rArray[4].setSize(Vector2f(100.0f, 100.0f));
-	srand(time(NULL));
-	for(int i = 0; i < 5; i++){
-		rArray[i].setOrigin(rArray[i].getSize().x / 2, rArray[i].getSize().y / 2);
-		rArray[i].setFillColor(Color::Blue);
-		rArray[i].setRotation(0);
+	for(int i = 0; i < x; i++){//set random size of rectangles
+		float randomXandYSize = (rand() % (150 - i * 7)) + 80;
+		rArray[i].setSize(Vector2f(randomXandYSize, randomXandYSize));
 	}
-	rArray[0].setPosition(100, 200);
-	rArray[1].setPosition(550, 300);
-	rArray[2].setPosition(300, 325);
-	rArray[3].setPosition(600, 100);
-	rArray[4].setPosition(700, 450);
-	for(int i = 0; i < 5; i++){ //getting the original positions of the points of the objects and setting up AABBs
+	for(int i = 0; i < x; i++){
+		rArray[i].setOrigin(rArray[i].getSize().x / 2, rArray[i].getSize().y / 2);
+	}
+	for(int i = 0; i < x; i++){//set positions of everything first
+		float randomXPos = (rand() % (WIDTH - 200)) + 100;
+		float randomYPos = (rand() % (HEIGHT - 200)) + 100;
+		rArray[i].setPosition(randomXPos, randomYPos);
+	}
+	for(int i = 0; i < x; i++){//check overlap for all rectangles and adjust its position
+		while(uandicollide(i)){
+			float newRandomXPos = (rand() % (WIDTH - 200)) + 100;
+			float newRandomYPos = (rand() % (HEIGHT - 200)) + 100;
+			rArray[i].setPosition(newRandomXPos, newRandomYPos);
+		}
+	}
+	for(int i = 0; i < x; i++){ //getting the original positions of the points of the objects and setting up AABBs
 		//setting up AABBs
 		AABB[i].setFillColor(Color::Transparent);
 		AABB[i].setOutlineColor(Color::Magenta);
@@ -68,10 +94,10 @@ int main(){
 				break;
 			}
 		}
-		for(int i = 0; i < 5; i++){ //rotating objects
-			rArray[i].rotate(10 * TIMESTEP * (rand() % 5));
+		for(int i = 0; i < x; i++){ //rotating objects
+			rArray[i].rotate(10 * TIMESTEP * (i + rand() % 5));
 		} 
-		for(int i = 0; i < 5; i++){//drawing AABBs and setting up for collision
+		for(int i = 0; i < x; i++){//drawing AABBs and setting up for collision
 			//getting the angle functions
 			float cFunc = abs(cos(rArray[i].getRotation() * M_PI/180));
 			float sFunc = abs(sin(rArray[i].getRotation() * M_PI/180));
@@ -99,9 +125,9 @@ int main(){
 			colAABB[i] = Vector2f(aabbMinX, aabbMinY);
 			rArray[i].setFillColor(Color::Blue);
 		}
-		for(int i = 0; i < 5; i++){//collision detection using min-width method
+		for(int i = 0; i < x; i++){//collision detection using min-width method
 			Vector2f difference;
-			for(int j = 0; j < 5; j++){
+			for(int j = 0; j < x; j++){
 				if(i != j){
 					difference = colAABB[i] - colAABB[j];
 					if(difference.x > AABB[j].getSize().x || -difference.x > AABB[i].getSize().x || difference.y > AABB[j].getSize().y || -difference.y > AABB[i].getSize().y){
@@ -113,13 +139,13 @@ int main(){
 				}
 			}
 		}
-		window.clear(Color::Black);
-		for(int i = 0; i < 5; i++){
+		window.clear(Color::Black);//clear to black
+		for(int i = 0; i < x; i++){//draw the rectangles
 			window.draw(rArray[i]);
 		}
-		for(int i = 0; i < 5; i++){
+		for(int i = 0; i < x; i++){//draw its respective AABBs
 			window.draw(AABB[i]);
 		}
-		window.display();
+		window.display();//display everything
 	}
 }
