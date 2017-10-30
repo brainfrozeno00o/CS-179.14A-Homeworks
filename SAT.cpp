@@ -2,9 +2,10 @@
 #include <iostream>
 #include <math.h>
 #include <stdlib.h>
+#include <vector>
 
 
-#define FPS 144
+#define FPS 60
 #define WIDTH 1024
 #define HEIGHT 768
 #define TIMESTEP 1.0f/FPS
@@ -14,14 +15,17 @@ using namespace std;
 using namespace sf;
 
 RenderWindow window;
-int shapes, points, xPoint, yPoint;
-ConvexShape poly[LIMIT];
-RectangleShape outline[LIMIT];
-FloatRect AABBSet[LIMIT];
-FloatRect AABBUpdate[LIMIT];
-Vector2f colAABB[LIMIT];
+int shapes, points, xPoint, yPoint; //for initialization
+ConvexShape poly[LIMIT]; //set convex shapes
+RectangleShape outline[LIMIT]; //set rectangle shapes for outline
+FloatRect AABBSet[LIMIT]; //for AABB in setting origin
+FloatRect AABBUpdate[LIMIT]; //for getting AABB during rotation
+Vector2f colAABB[LIMIT]; //for AABB collision
+Color color1 = Color::Red; //color if polygons collided
+Color color2 = Color::Yellow; //color if bounding boxes collided
+Color color3 = Color::Blue; //color if both bounding boxes and polygons are not colliding
 bool rot, goLeft, goRight, goUp, goDown;
-//put input of the object, text file not yet done
+//put input of the object
 void setObjects(){
 	cin >> shapes;
 	for(int i = 0; i < shapes; i++){
@@ -36,15 +40,15 @@ void setObjects(){
 		}
 		AABBSet[i] = poly[i].getLocalBounds();
 		poly[i].setOrigin(AABBSet[i].left + AABBSet[i].width/2, AABBSet[i].top + AABBSet[i].height/2);
-		poly[i].setFillColor(Color::Blue);
+		poly[i].setFillColor(color3);
 	}
 }
 //move the first polygon
 void moveShape(){
-	if(goLeft) poly[0].move(-0.5, 0);
-	if(goRight) poly[0].move(0.5, 0);
-	if(goUp) poly[0].move(0, -0.5);
-	if(goDown) poly[0].move(0, 0.5);
+	if(goLeft) poly[0].move(-(100 * TIMESTEP), 0);
+	if(goRight) poly[0].move((100 * TIMESTEP), 0);
+	if(goUp) poly[0].move(0, -(100 * TIMESTEP));
+	if(goDown) poly[0].move(0, (100 * TIMESTEP));
 }
 //rotate all the shapes based on r
 void rotateShapes(bool r){
@@ -77,7 +81,7 @@ void getAABB(){
 		outline[i].setOutlineColor(Color::Magenta);
 		outline[i].setOutlineThickness(1);	
 		colAABB[i] = Vector2f(AABBUpdate[i].left, AABBUpdate[i].top);
-		poly[i].setFillColor(Color::Blue);		
+		poly[i].setFillColor(color3);		
 	}
 }
 //AABB collision detection using min-width method
@@ -90,84 +94,86 @@ void checkAABBCollision(){
 				if(difference.x > outline[j].getSize().x || -difference.x > outline[i].getSize().x || difference.y > outline[j].getSize().y || -difference.y > outline[i].getSize().y){
 					continue;
 				}else{
-					poly[i].setFillColor(Color::Yellow);
-					poly[j].setFillColor(Color::Yellow);
+					poly[i].setFillColor(color2);
+					poly[j].setFillColor(color2);
 				}
 			}
 		}
 	}	
 }
-//get perpendicular vector
-Vector2f getPerpendicularNormal(ConvexShape poly, int i){
-	int pointIndex1 = i;
-	int pointIndex2 = i + 1;
-	if(pointIndex2 == poly.getPointCount()) pointIndex2 = 0;
-	Vector2f firstEdgePoint = poly.getTransform().transformPoint(poly.getPoint(pointIndex1));
-	Vector2f secondEdgePoint = poly.getTransform().transformPoint(poly.getPoint(pointIndex2));
-	Vector2f edgeVector = Vector2f(firstEdgePoint - secondEdgePoint);
-	Vector2f axisVector = Vector2f(-edgeVector.y, edgeVector.x);
-	Vector2f perpVector = Vector2f((axisVector.x) / sqrt((axisVector.x * axisVector.x) + (axisVector.y * axisVector.y)), (axisVector.y) / sqrt((axisVector.x * axisVector.x) + (axisVector.y * axisVector.y)));
-	return perpVector;
+//return perpendicular vector
+Vector2f unitPerp(Vector2f vec){
+	Vector2f perp = Vector2f(-vec.y, vec.x);
+	return perp;
 }
-//get minimum point
-Vector2f getMinForLineSegment(ConvexShape poly, Vector2f axis){
-	Vector2f minpoint = (((poly.getTransform().transformPoint(poly.getPoint(0)).x * axis.x) + (poly.getTransform().transformPoint(poly.getPoint(0)).y * axis.y))) * axis;
-	for(int i = 1; i < poly.getPointCount(); i++){
-		Vector2f projectPoint = (((poly.getTransform().transformPoint(poly.getPoint(i)).x * axis.x) + (poly.getTransform().transformPoint(poly.getPoint(i)).y * axis.y))) * axis;
-		minpoint.x = min(minpoint.x, projectPoint.x);
-		minpoint.y = min(minpoint.y, projectPoint.y);
+//return a vector that contains all axes for checking
+vector<Vector2f> getAxes(ConvexShape poly1, ConvexShape poly2){
+	vector<Vector2f> axesToCheck;
+	for(int i = 0; i < poly1.getPointCount() - 1; i++){
+		axesToCheck.push_back(unitPerp(poly1.getTransform().transformPoint(poly1.getPoint(i)) - poly1.getTransform().transformPoint(poly1.getPoint(i+1))));
 	}
-	return minpoint;
-}
-//get maximum projected point
-Vector2f getMaxForLineSegment(ConvexShape poly, Vector2f axis){
-	Vector2f maxpoint = (((poly.getTransform().transformPoint(poly.getPoint(0)).x * axis.x) + (poly.getTransform().transformPoint(poly.getPoint(0)).y * axis.y))) * axis;
-	for(int i = 1; i < poly.getPointCount(); i++){
-		Vector2f projectPoint = (((poly.getTransform().transformPoint(poly.getPoint(i)).x * axis.x) + (poly.getTransform().transformPoint(poly.getPoint(i)).y * axis.y))) * axis;
-		maxpoint.x = max(maxpoint.x, projectPoint.x);
-		maxpoint.y = max(maxpoint.y, projectPoint.y);
+	axesToCheck.push_back(unitPerp(poly1.getTransform().transformPoint(poly1.getPoint(poly1.getPointCount() - 1)) - poly1.getTransform().transformPoint(poly1.getPoint(0))));
+	for(int j = 0; j < poly2.getPointCount() - 1; j++){
+		axesToCheck.push_back(unitPerp(poly2.getTransform().transformPoint(poly2.getPoint(j)) - poly2.getTransform().transformPoint(poly2.getPoint(j+1))));
 	}
-	return maxpoint;
+	axesToCheck.push_back(unitPerp(poly1.getTransform().transformPoint(poly2.getPoint(poly2.getPointCount() - 1)) - poly2.getTransform().transformPoint(poly2.getPoint(0))));
+	return axesToCheck;
 }
-
-bool checkOverlap(ConvexShape poly1, ConvexShape poly2){
-	bool poly1Collide = true, poly2Collide = true;
-	for(int i = 0; i < poly1.getPointCount(); i++){
-		Vector2f perpNorm1 = getPerpendicularNormal(poly1, i);
-		Vector2f minPoint1 = getMinForLineSegment(poly1, perpNorm1);
-		Vector2f maxPoint1 = getMaxForLineSegment(poly1, perpNorm1);
-		Vector2f minPoint2 = getMinForLineSegment(poly2, perpNorm1);
-		Vector2f maxPoint2 = getMaxForLineSegment(poly2, perpNorm1);
-		if(minPoint2.x > maxPoint1.x || minPoint2.y > maxPoint1.y || maxPoint2.x > minPoint1.x || maxPoint2.y > minPoint1.y){
-			continue;
-		}else{
-			poly1Collide = false;
-			break;
+//return dot product
+float getDotProduct(Vector2f a, Vector2f b){
+	return ((a.x * b.x) + (a.y * b.y));
+}
+//return scalar minimum value
+float returnMin(ConvexShape poly1, Vector2f u){
+	float polyMin = getDotProduct(poly1.getTransform().transformPoint(poly1.getPoint(0)), u);
+	for(int i = 1; i < poly1.getPointCount(); i++){
+		float checkMin = getDotProduct(poly1.getTransform().transformPoint(poly1.getPoint(i)), u);
+		if(checkMin < polyMin) polyMin = checkMin;
+	}
+	return polyMin;
+}
+//return scalar maximum value
+float returnMax(ConvexShape poly1, Vector2f u){
+	float polyMax = getDotProduct(poly1.getTransform().transformPoint(poly1.getPoint(0)), u);
+	for(int i = 1; i < poly1.getPointCount(); i++){
+		float checkMax = getDotProduct(poly1.getTransform().transformPoint(poly1.getPoint(i)), u);
+		if(checkMax > polyMax) polyMax = checkMax;
+	}
+	return polyMax;	
+}
+//check SAT collision for two convex shapes
+bool checkSATCollisionForTwo(ConvexShape poly1, ConvexShape poly2){
+	vector<Vector2f> check = getAxes(poly1, poly2);
+	int overlapCounter = 0;
+	for(int i = 0; i < check.size(); i++){
+		float poly1Min = returnMin(poly1, check.at(i));
+		float poly2Min = returnMin(poly2, check.at(i));
+		float poly1Max = returnMax(poly1, check.at(i));
+		float poly2Max = returnMax(poly2, check.at(i));
+		if(poly2Min > poly1Max || poly2Max < poly1Min) break;
+		else overlapCounter++;
+	}
+	if(overlapCounter == check.size()) return true; else return false;
+}
+//check SAT Collision for everything
+void checkSATCollision(){
+	for(int i = 0; i < shapes; i++){
+		for(int j = 0; j < shapes; j++){
+			if(i != j){
+				if(checkSATCollisionForTwo(poly[i], poly[j])){
+					poly[i].setFillColor(color1);
+					poly[j].setFillColor(color1);
+				}
+			}
 		}
 	}
-	for(int i = 0; i < poly2.getPointCount(); i++){
-		Vector2f perpNorm2 = getPerpendicularNormal(poly2, i);
-		Vector2f minPoint3 = getMinForLineSegment(poly1, perpNorm2);
-		Vector2f maxPoint3 = getMaxForLineSegment(poly1, perpNorm2);
-		Vector2f minPoint4 = getMinForLineSegment(poly2, perpNorm2);
-		Vector2f maxPoint4 = getMaxForLineSegment(poly2, perpNorm2);
-		if(minPoint4.x > maxPoint3.x || minPoint4.y > maxPoint3.y || maxPoint4.x > minPoint3.x || maxPoint4.y > minPoint3.y){
-			continue;
-		}else{
-			poly2Collide = false;
-			break;
-		}
-	}
-	return (poly1Collide && poly2Collide);
 }
-
-//void checkSATCollision()
 
 int main(){
-	setObjects(); //draw for manual input, not for text files yet
+	setObjects(); 
 	ContextSettings settings;
 	settings.antialiasingLevel = 8;
-	window.create(VideoMode(WIDTH, HEIGHT), "Poly Shit", Style::Default, settings);
+	window.create(VideoMode(WIDTH, HEIGHT), "Poly Stuff", Style::Default, settings);
 	window.setKeyRepeatEnabled(false);
 	window.setFramerateLimit(FPS);
 	while(window.isOpen()){
@@ -221,10 +227,26 @@ int main(){
 		moveShape();
 		getAABB();
 		checkAABBCollision();
-		//checkSATCollision();
+		checkSATCollision();
 		window.clear(Color::Black);
 		for(int i = 0; i < shapes; i++) window.draw(poly[i]);
 		for(int i = 0; i < shapes; i++) window.draw(outline[i]);
 		window.display();
 	}
 }
+
+/*own test values
+2
+4
+-50 -50
+50 -50
+50 50
+-50 50
+200 70
+4
+-100 -100
+100 -100
+100 100
+-100 100
+500 250
+*/
