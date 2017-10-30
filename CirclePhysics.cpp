@@ -109,8 +109,8 @@ int main(){
 				break;
 			}
 		}
-		bounceCheck();
 		updatePosition();
+		checkBounce();
 		window.clear(Color::Black);
 		window.draw(circle);
 		window.display();
